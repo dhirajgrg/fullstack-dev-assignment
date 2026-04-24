@@ -11,18 +11,30 @@ export const createSecret = catchAsync(async (req, res, next) => {
     );
   }
 
+const expirySeconds = parseInt(expiresSecretTimes, 10); 
+if (isNaN(expirySeconds) || expirySeconds <= 0) {
+  return next(new AppError("Invalid expiry time", 400));
+}
+
   const token = generateToken();
   const encryptedData = encryption(secret);
-  const expiresAt = new Date(Date.now() + expiresSecretTimes * 60 * 1000);
+  const expiresAt = new Date(Date.now() + expiresSecretTimes * 1000);
 
   const newSecret = await Secret.create({ token, encryptedData, expiresAt });
 
-  const url= `http://localhost:5173/secret/${token}`
+  if (!newSecret) return next(new AppError("Secret not found", 404));
+  
+  if (newSecret.expiresAt < new Date()) {
+    await Secret.deleteOne({ token }); 
+    return next(new AppError("Secret has expired", 404));
+  }
+
+  const url = `http://localhost:5173/view/${token}`;
 
   res.status(201).json({
     status: "success",
     message: "Secret created successfully",
-    url 
+    url,
   });
 });
 
@@ -32,11 +44,11 @@ export const getSecret = catchAsync(async (req, res, next) => {
   if (!token) {
     return next(new AppError("Token is required", 400));
   }
-
+   
   const secretDoc = await Secret.findOneAndUpdate(
-    { token, isBurned: false },
+    { token, isBurned: false ,expiresAt:{$gt:new Date()}},
     { $set: { isBurned: true } },
-    { new: true },
+    { returnDocument: 'after' },
   );
 
   if (!secretDoc) {

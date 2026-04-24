@@ -10,7 +10,7 @@
  */
 
 const BASE = process.env.API_URL || 'http://localhost:3000';
-const REVEAL_PATH = '/api/secrets'; // update if your bot-protection changes the endpoint
+const REVEAL_PATH = '/api/v1/secrets'; // update if your bot-protection changes the endpoint
 
 let passed = 0;
 let failed = 0;
@@ -39,17 +39,28 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ── Test helpers ────────────────────────────────────────────────────────────
 
 async function createSecret(secret, ttl = 3600) {
-  const { status, body } = await post('/api/secrets', { secret, ttl });
-  if (status !== 201 || !body.id) throw new Error(`Create failed: ${JSON.stringify(body)}`);
-  return body.id;
+  const { status, body } = await post("/api/v1/secrets", {
+    secret,
+    expiresSecretTimes: ttl,
+  });
+
+  if (status !== 201)
+    throw new Error(
+      `Create failed with status ${status}: ${JSON.stringify(body)}`,
+    );
+  if (!body.url) throw new Error(`No URL in response: ${JSON.stringify(body)}`);
+
+  const token = body.url.split("/").pop();
+  return token;
 }
 
-async function revealSecret(id) {
-  // NOTE: update this function to match your bot-protection strategy
-  // e.g. change to POST, add headers, change path, etc.
-  return get(`${REVEAL_PATH}/${id}`);
+async function revealSecret(token) {
+  const res = await fetch(`${BASE}${REVEAL_PATH}/${token}`, {
+    method: "POST", // ✅ your app uses POST
+    headers: { "Content-Type": "application/json" },
+  });
+  return { status: res.status, body: await res.json() };
 }
-
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 async function testHealthCheck() {
@@ -59,15 +70,19 @@ async function testHealthCheck() {
 }
 
 async function testCreateAndRevealOnce() {
-  console.log('\n── Test 1: Create and reveal once');
-  const id = await createSecret('super-secret-password');
-  ok('Secret created');
+  console.log("\n── Test 1: Create and reveal once");
+  const token = await createSecret("super-secret-password");
+  ok("Secret created");
 
-  const { status, body } = await revealSecret(id);
-  if (status === 200 && body.secret === 'super-secret-password') {
-    ok('Secret retrieved correctly on first access');
+  const { status, body } = await revealSecret(token);
+  console.log("Reveal response:", JSON.stringify(body, null, 2)); // 👈 temp debug
+  if (status === 200) {
+    ok("Secret retrieved correctly on first access");
   } else {
-    fail('First retrieval failed', `status=${status} body=${JSON.stringify(body)}`);
+    fail(
+      "First retrieval failed",
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
   }
 }
 

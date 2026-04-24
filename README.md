@@ -1,4 +1,5 @@
 # Secure Credential Drop
+
 **Self-Destructing Password Sharer — S&S Tech Services Technical Assessment**
 
 > **Instructions for the candidate**
@@ -8,6 +9,7 @@
 ---
 
 ## Table of Contents
+
 1. [Candidate Info](#1-candidate-info)
 2. [Project Overview](#2-project-overview)
 3. [Tech Stack & Decisions](#3-tech-stack--decisions)
@@ -24,12 +26,12 @@
 
 ## 1. Candidate Info
 
-| | |
-|---|---|
-| **Name** | _Write here_ |
-| **Email** | _Write here_ |
-| **Submission date** | _Write here_ |
-| **Time taken** | _Write here_ |
+|                     |                      |
+| ------------------- | -------------------- |
+| **Name**            | Dhiraj Gurung        |
+| **Email**           | gdhiraj030@gmail.com |
+| **Submission date** | April 24, 2026       |
+| **Time taken**      | 2 days               |
 
 ---
 
@@ -37,36 +39,56 @@
 
 > Describe what the service does and the end-to-end user flow in 3–5 sentences.
 
-_Write here_
+The service takes text and encrypt it by aes-256-cbc encryption algorithm and generates url with randomness unique token every generation and that can be sharebale .so,who ever receive that url and directed view secret page but secrets are reveal only when user clicks reveal button then the encrypted text decrypt back with same key used in ecncryption and it it only one time reveal if user tries to reload or reveal again that it throw message it already used,viewed or burnded
 
 ---
 
 ## 3. Tech Stack & Decisions
 
-| Layer | Technology | Why chosen |
-|-------|-----------|------------|
-| Runtime | Node.js | _Write here_ |
-| Framework | Express | _Write here_ |
-| Database | PostgreSQL | _Write here_ |
-| Encryption | Node.js `crypto` | _Write here_ |
+| Layer      | Technology       | Why chosen                                                                                               |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| Runtime    | Node.js          | Non-blocking I/O runtime; built-in crypto module for encryption                                          |
+| Framework  | Express.js       | Fast, lightweight REST API framework with clean architecture                                             |
+| Database   | MongoDB          | Document-based storage with TTL indexes for automatic cleanup; better than SQL for this use case         |
+| Encryption | Node.js `crypto` | AES-256-CBC symmetric encryption; built-in module, uses single master key for both encryption/decryption |
+| Frontend   | React + Vite     | Modern, reactive UI with fast hot module replacement (HMR)                                               |
+| Validation | Mongoose         | Schema validation and data integrity at database layer                                                   |
 
 ---
 
 ## 4. Project Structure
 
 ```
-/project-root
-  ├── /api
-  │    ├── server.js              Express entry point, DB pool, cleanup job
-  │    ├── /routes/secrets.js     POST (Create) & GET (Retrieve/Burn)
-  │    └── /utils/crypto.js       AES-256-GCM encrypt / decrypt
-  ├── /db
-  │    └── schema.sql             Table: id, encrypted_body, expires_at, is_viewed
-  ├── /web
-  │    └── index.html             Single-page UI — create form and reveal page
-  ├── package.json
-  ├── docker-compose.yml
-  └── .env
+dhirajgrg/
+├── backend/
+│   ├── server.js                         Entry point, port 3001, DB connection
+│   ├── src/
+│   │   ├── app.js                        Express app, middleware, routing
+│   │   ├── controllers/
+│   │   │   ├── secret.controller.js      Create & retrieve secret logic
+│   │   │   └── error.controller.js       Global error handler
+│   │   ├── models/
+│   │   │   └── secret.model.js           Mongoose schema: token, encryptedData, expiresAt, isBurned
+│   │   ├── routes/
+│   │   │   └── secret.route.js           POST / (Create) & POST /:token (Retrieve/Burn)
+│   │   ├── db/
+│   │   │   └── db.js                     MongoDB connection setup
+│   │   └── utils/
+│   │       ├── crypto.util.js            AES-256-CBC encrypt/decrypt
+│   │       ├── appError.utils.js         Custom error class
+│   │       └── catchAsync.js             Async error wrapper
+│   └── package.json
+├── frontend/
+│   ├── index.html                        Entry point
+│   ├── src/
+│   │   ├── main.jsx                      React root
+│   │   ├── App.jsx                       Router & main layout
+│   │   ├── components/
+│   │   │   ├── CreateSecret.jsx          Form to create & copy link
+│   │   │   └── ViewSecret.jsx            Reveal button & decrypt UI
+│   │   └── index.css                     Global styles
+│   └── package.json
+└── README.md
 ```
 
 ---
@@ -94,6 +116,7 @@ npm start         # production
 Open `web/index.html` in a browser (e.g. VS Code Live Server on port 5500).
 
 **Local PostgreSQL via Docker:**
+
 ```bash
 docker-compose up -d
 ```
@@ -102,12 +125,12 @@ docker-compose up -d
 
 ## 6. Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string — `postgresql://user:pass@localhost:5432/secret_drop` |
-| `MASTER_KEY` | Yes | 64-char hex string (32 bytes) for AES-256-GCM. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `PORT` | No | Server port (default: `3000`) |
-| `FRONTEND_ORIGIN` | No | Allowed CORS origin (default: `http://localhost:5500`) |
+| Variable          | Required | Description                                                                                                                         |
+| ----------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`    | Yes      | PostgreSQL connection string — `postgresql://user:pass@localhost:5432/secret_drop`                                                  |
+| `MASTER_KEY`      | Yes      | 64-char hex string (32 bytes) for AES-256-GCM. Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `PORT`            | No       | Server port (default: `3000`)                                                                                                       |
+| `FRONTEND_ORIGIN` | No       | Allowed CORS origin (default: `http://localhost:5500`)                                                                              |
 
 ---
 
@@ -116,17 +139,24 @@ docker-compose up -d
 ### `POST /api/secrets` — Create a secret
 
 **Request body**
+
 ```json
 { "secret": "my-password", "ttl": 3600 }
 ```
-| Field | Type | Description |
-|-------|------|-------------|
-| `secret` | string | Plaintext to store |
-| `ttl` | number | Expiry in seconds from now (min 60, max 604800) |
+
+| Field    | Type   | Description                                     |
+| -------- | ------ | ----------------------------------------------- |
+| `secret` | string | Plaintext to store                              |
+| `ttl`    | number | Expiry in seconds from now (min 60, max 604800) |
 
 **Response `201 Created`**
+
 ```json
-{ "id": "<uuid>", "link": "http://…/web/index.html?id=<uuid>", "expiresAt": "…" }
+{
+  "id": "<uuid>",
+  "link": "http://…/web/index.html?id=<uuid>",
+  "expiresAt": "…"
+}
 ```
 
 ---
@@ -134,9 +164,11 @@ docker-compose up -d
 ### `GET /api/secrets/:id` — Retrieve and burn
 
 **Response `200 OK`** — secret returned, permanently deleted from the database
+
 ```json
 { "secret": "my-password" }
 ```
+
 **Response `404 Not Found`** — does not exist, already viewed, or expired
 
 > **Note for candidate:** If your bot-protection strategy changes the method or path of this endpoint, update this section to reflect your actual implementation.
@@ -209,4 +241,5 @@ _Write here — explain why correctness does not depend on the server being cont
 
 > Honest reflection. What shortcuts did you take? What would you improve with more time?
 
-_Write here_
+for AES algorith,generate readme2.md and test/verify cases i use ai .
+I will improve sending url through email and implement auth system with jwt if i have even more time.
